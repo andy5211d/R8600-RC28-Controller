@@ -20,8 +20,8 @@ Appendix B — Input Report Flowchart
 1.  Overview
 The Icom RC‑28 is a USB HID device providing:
 A rotary encoder (CW/CCW)
-Three momentary buttons (TX, F1, F2)
-Four LEDs (Link, F1, F2, Tx)
+Three momentary buttons (TRANSMIT, F-1, F-2)
+Four LEDs (LINK, F-1, F-2, TRANSMIT)
 
 This document describes the reverse‑engineered HID protocol, including all known input and output report formats.
 
@@ -40,12 +40,12 @@ Byte 1 : LED bitmask
 Bytes 2–8 : Reserved (0x00)
 LED Bitmask
 Bit	Hex	LED
-0	0x01	??
-1	0x02	F2
-2	0x04	F1
-3	0x08	Tx
-4	0x10	Link
-5	0x20	All‑LED override
+0	0x01	TRANSMIT
+1	0x02	F-2
+2	0x04	F-1
+3	0x08	TRANSMIT
+4	0x10	LINK
+5	0x20	All‑LED ON override
 6	0x40	Unused
 7	0x80	Unused
 
@@ -58,12 +58,12 @@ Re‑sending the same mask does not toggle LEDs; the mask is absolute.
 Examples
 Mask	LEDs Lit
 0x00	All off
-0x01	Rx
-0x02	F2
-0x04	F1
-0x08	Tx
-0x10	Link
-0x1F	Link + Tx + F1 + F2 + Rx
+0x01	TRANSMIT
+0x02	F-2
+0x04	F-1
+0x08	TRANSMIT
+0x10	LINK
+0x1F	LINK + TRANSMIT + F-1 + F-2
 0x20	All LEDs ON (override)
 HID Input Reports (RC‑28 → Host)
 Report ID 0x00 — Encoder Movement
