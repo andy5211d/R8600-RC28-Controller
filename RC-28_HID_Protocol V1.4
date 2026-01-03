@@ -1,0 +1,327 @@
+RC‑28 HID Protocol Specification
+Version 1.4 — January 2026  
+Author: Andy
+
+Table of Contents
+Overview
+USB Identification
+HID Output Reports
+LED Bitmask
+HID Input Reports
+Encoder Movement
+Button Events
+Report ID Summary
+Safety Notes
+Implementation Notes
+Appendix A — LED Bitmask Diagram
+Appendix B — Input Report Flowchart
+Appendix C — Device Architecture Summary
+Appendix D — USB Enumeration States
+Appendix E — Configuration‑0 Lockout Failure Mode
+Appendix F — Encoder Multi‑Step Examples
+
+1. Overview
+The Icom RC‑28 is a USB HID device providing:
+
+A rotary encoder (CW/CCW)
+
+Three momentary buttons (TX, F1, F2)
+Four LEDs (Link, F1, F2, Tx)
+
+This document describes the reverse‑engineered HID protocol, including all known input and output report formats, device behavior, and failure modes discovered during empirical testing.
+
+2. USB Identification
+Field	Value
+Vendor ID	0x0C26
+Product ID	0x001E
+Device Class	HID (Vendor‑specific)
+USB Speed	Full‑Speed (12 Mbit/s)
+MCU	PIC18F14K50
+The RC‑28 exposes one configuration containing one HID interface with two interrupt endpoints:
+
+IN 0x81 (64 bytes)
+
+OUT 0x01 (64 bytes)
+
+3. HID Output Reports (Host → RC‑28)
+Report ID 0x01 — LED Control
+The RC‑28 accepts a 9‑byte output report:
+
+Code
+Byte 0 : Report ID (0x01)
+Byte 1 : LED bitmask
+Bytes 2–8 : Reserved (must be 0x00)
+Reserved bytes must be zero.
+Non‑zero values have been observed to cause undefined behavior.
+
+4. LED Bitmask
+Bit	Hex	LED
+0	0x01	Unused
+1	0x02	F2 LED
+2	0x04	F1 LED
+3	0x08	Tx LED
+4	0x10	Link LED
+5	0x20	All‑LED override
+6	0x40	Unused
+7	0x80	Unused
+Behavior Notes
+Bits 1–4 directly control visible LEDs.
+
+Bit 5 forces all LEDs ON.
+
+LED mask is absolute, not toggle‑based.
+
+No blinking or animation modes observed.
+
+5. HID Input Reports (RC‑28 → Host)
+The RC‑28 uses two input report IDs:
+
+0x00 → encoder movement
+
+0x01 → button events
+
+Reports are fixed‑length and always include the report ID in byte 0.
+
+6. Encoder Movement
+Report ID: 0x00  
+Purpose: Rotary encoder movement (CW/CCW)
+
+6.1 Structure
+The encoder report is a fixed‑length HID input report.
+Two bytes encode movement:
+
+Byte 3 = direction
+
+Byte 1 = delta magnitude
+
+6.2 Direction Encoding
+Direction is encoded in Byte 3:
+
+Byte 3	Meaning
+0x01	Clockwise (CW)
+0x02	Counter‑clockwise (CCW)
+6.3 Delta Magnitude (Multi‑Step)
+Delta magnitude is encoded in Byte 1:
+
+Slow rotation → 0x01
+
+Faster rotation → 0x02, 0x03, 0x04, …
+
+Represents the number of detents since the last USB interrupt
+
+6.4 Characteristics
+One report per USB interrupt, not per detent
+
+Two bytes define the event:
+
+Byte 3 = direction
+
+Byte 1 = delta magnitude
+
+No signed values
+
+No negative numbers
+
+No 0xFF
+
+No acceleration logic
+
+Pure unsigned delta count
+
+6.5 Notes
+All other bytes remain constant during movement.
+
+Exact byte positions verified from empirical logs.
+
+Behavior must be re‑verified on a working unit for completeness.
+
+7. Button Events
+Report ID: 0x01  
+Button state byte: Byte 5
+
+7.1 Behavior
+The RC‑28 uses an active‑low bitmask for button presses:
+
+Each button clears one specific bit
+
+All buttons share the same release pattern
+
+Only one button can be active at a time
+
+No combination presses are reported
+
+7.2 Press Patterns (active‑low)
+Button	Press Condition (Byte 5)
+TX	(buttons & 0x01) == 0
+F1	(buttons & 0x02) == 0
+F2	(buttons & 0x04) == 0
+7.3 Release Pattern
+All buttons release to:
+
+Code
+0xFF
+7.4 Notes
+Byte 5 is the only byte that changes during button events
+
+Long‑press behavior is implemented in software
+
+No multi‑button combinations are possible
+
+8. Report ID Summary
+Report ID	Direction	Purpose
+0x00	Input	Encoder movement
+0x01	Input	Button events
+0x01	Output	LED control
+0x02–0x06	Output	No visible effect
+0x07	Output	Unknown — avoid
+0x08–0x0F	Output	No observed effect
+9. Safety Notes
+Avoid Report ID 0x07 — suspected firmware/DFU path.
+
+Always send exactly 9 bytes in output reports.
+
+Reserved bytes must be zero.
+
+Do not send malformed or variable‑length packets.
+
+Do not fuzz OUT endpoint without guardrails.
+
+The RC‑28 firmware is not robust against invalid HID OUT traffic.
+
+10. Implementation Notes
+hid4java requires the report ID in byte 0.
+
+Reflection‑based write() recommended for cross‑platform compatibility.
+
+Input reports must be polled.
+
+Treat 0xFF as a universal release code.
+
+LED writes are absolute, not relative.
+
+11. Appendix A — LED Bitmask Diagram
+Code
++------------------------------------------------------+
+|                RC‑28 LED Bitmask (Byte 1)            |
++---------+---------+---------+---------+--------------+
+| Bit 7   | Bit 6   | Bit 5   | Bit 4   | Bit 3        |
+| 0x80    | 0x40    | 0x20    | 0x10    | 0x08         |
+| unused  | unused  | ALL ON  | Link    | Tx           |
++---------+---------+---------+---------+--------------+
+| Bit 2   | Bit 1   | Bit 0             |
+| 0x04    | 0x02    | 0x01              |
+| F1      | F2      | unused            |
++---------------------------------------+
+12. Appendix B — Input Report Flowchart
+(unchanged)
+
+13. Appendix C — Device Architecture Summary
+MCU
+Microchip PIC18F14K50
+
+Full‑speed USB 2.0
+
+Internal USB engine handles early enumeration
+
+Firmware stored in flash
+
+Possible EEPROM region for persistent LED state
+
+Components
+Quadrature encoder
+
+Three tactile switches
+
+Four LEDs
+
+No battery
+
+No supercapacitor
+
+No auxiliary power source
+
+14. Appendix D — USB Enumeration States
+Normal Enumeration
+Code
+Current Config Value : 0x01
+Number of open Pipes : 0x02
+Early Enumeration (always works)
+The PIC always responds to:
+
+GET_DESCRIPTOR(Device)
+
+GET_DESCRIPTOR(Configuration)
+
+GET_DESCRIPTOR(String)
+
+Failure Enumeration (Configuration‑0 Lockout)
+Code
+Current Config Value : 0x00
+Number of open Pipes : 0x00
+15. Appendix E — Configuration‑0 Lockout Failure Mode
+Summary
+A persistent failure mode where the RC‑28:
+
+Appears in USBTreeView
+
+Responds to descriptor requests
+
+But never enables HID interface
+
+Never accepts configuration
+
+Never exposes endpoints
+
+Never sends input reports
+
+Cannot be detected by Icom firmware updater
+
+Root Cause (Most Probable)
+A malformed HID OUT report (during LED protocol probing) corrupted persistent state used during boot.
+
+On next boot:
+
+PIC reads invalid state
+
+Firmware hits invalid branch/table
+
+Crashes before USB configuration
+
+USB engine remains in descriptor‑only mode
+
+Recovery
+No USB‑side recovery path exists.
+
+The only theoretical recovery would require:
+
+Locating PIC ICSP pads
+
+Using a PICkit programmer
+
+Reflashing firmware
+
+…but Icom firmware is not publicly available.
+
+Practical Outcome
+Device is effectively firmware‑bricked.
+
+16. Appendix F — Encoder Multi‑Step Examples
+Slow CW rotation
+Code
+00 01 00 01 00 07 00 00
+00 01 00 01 00 07 00 00
+Slow CCW rotation
+Code
+00 01 00 02 00 07 00 00
+00 01 00 02 00 07 00 00
+Fast CW rotation (multi‑step delta)
+Code
+00 02 00 01 00 07 00 00   → 2 steps CW
+00 03 00 01 00 07 00 00   → 3 steps CW
+00 04 00 01 00 07 00 00   → 4 steps CW
+Fast CCW rotation
+Code
+00 02 00 02 00 07 00 00   → 2 steps CCW
+00 03 00 02 00 07 00 00   → 3 steps CCW
+Direction = Byte 3  
+Delta magnitude = Byte 1
