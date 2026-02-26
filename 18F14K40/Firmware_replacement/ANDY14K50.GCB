@@ -1,0 +1,13 @@
+#CHIP 18f14K50
+#OPTION explicit
+
+
+Do
+    PulseOut portc.0, 1 s
+    PulseOut portc.3, 1 s
+    PulseOut portc.4, 1 s
+    PulseOut portc.5, 1 s
+    
+
+    wait 1 s
+Loop

@@ -1,0 +1,1 @@
+This firmware extracted from the RC-28 does not operate as expected.  This is probable a broken HEX and should be used with great caution.
