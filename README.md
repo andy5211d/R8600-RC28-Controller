@@ -30,5 +30,8 @@ The folder structure shown here must be used for the sketch to compile.
 
 RC-28 PCB Pictures and part circuit diagram now included, (so I know what pins do what and
 I can try to generate my own firmware and flash using the ISCP connector).
-If I can't re-flash my IC-28 will ditch and get a Windows Tablet.  That gives better
-functionality than the RC-28 albeit without the rather nice rotary encoder!
+
+Included are the original HEX files extracted from the PIC controller in the RC-28.  This
+is a faulty block of code and does not run correctly.  Essentally the RC-28 is non
+functional due to what is suspected as corruption of the boot loader.  The device is
+no longer recognised by Windows although Windows does see a device connected initially.
